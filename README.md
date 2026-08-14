@@ -79,6 +79,10 @@ One-time setup:
 After that, GitHub rebuilds the app for you—there is no need to upload
 `build/web` manually after each change.
 
+If the workflow reports `Get Pages site failed`, return to **Settings → Pages**
+and select **GitHub Actions** as the source. Pages must be enabled once before
+the standard `GITHUB_TOKEN` can deploy the site.
+
 ## Project status
 
 This is a web spike/prototype. It currently uses local GLB assets and does not
