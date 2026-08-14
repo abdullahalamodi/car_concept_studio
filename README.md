@@ -1,39 +1,97 @@
-# Car Concept Studio — web prototype
+# Car Concept Studio
 
-Throwaway Flutter web spike for testing a real glTF material-variant workflow.
+Car Concept Studio is a small Flutter Web prototype for exploring how a product
+configurator can inspect and interact with real glTF/GLB model capabilities.
 
-## Run
+It is a preview build for friends, designers, and developers to try. The goal
+is to test the interaction model—not to present a finished production product.
+
+**Live preview:** [Open Car Concept Studio](https://abdullahalamodi.github.io/car_concept_studio/)
+
+## Preview
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="assets/1.png" alt="Car Concept configurator preview" width="420">
+      <br>
+      <sub>Car Concept: paint variants, views, lights, and model capability details.</sub>
+    </td>
+    <td align="center">
+      <img src="assets/2.png" alt="Commercial Refrigerator animation preview" width="420">
+      <br>
+      <sub>Commercial Refrigerator: an authored door animation with open and close controls.</sub>
+    </td>
+  </tr>
+</table>
+
+## What it does
+
+- Switches between a Car Concept model and a Commercial Refrigerator model.
+- Demonstrates three authored `KHR_materials_variants` paint options on the car.
+- Provides exterior and interior camera presentations for the car.
+- Exposes model-specific actions such as headlights and wheel details.
+- Plays the refrigerator's authored glTF door animation forward and backward.
+- Shows a capability summary based on the selected GLB asset.
+
+The controls are intentionally model-aware: the interface surfaces capabilities
+that exist in the selected asset instead of assuming every model supports the
+same interactions.
+
+## Run locally
+
+You need the Flutter SDK and a modern web browser.
 
 ```bash
-cd /Users/alamodi/Documents/Codex/2026-08-13/we-have-an-app-to-show/deployments/flutter-projects/examples/car_concept_studio
+git clone https://github.com/abdullahalamodi/car_concept_studio.git
+cd car_concept_studio
+flutter pub get
 flutter run -d chrome
 ```
 
-The release build is generated at `build/web` with:
+To build the release version:
 
 ```bash
 flutter build web --release
 ```
 
-## What this tests
+The static release bundle is generated in `build/web`. To preview that bundle
+through a local web server:
 
-- `model_viewer_plus: ^1.10.0` on Flutter 3.44.8 web.
-- The local `assets/CarConcept.glb` file from Khronos glTF Sample Assets.
-- Switching the three authored `KHR_materials_variants` paint names without changing the model file.
-- Switching between the Car Concept and Commercial Refrigerator models from the top model bar.
-- Exterior/interior camera presets, orbit/zoom controls, and AR handoff affordance.
-- App-owned wheel information and a web bridge for the CarConcept `Headlight` emissive material.
-- Seeking the refrigerator's authored door animation between closed and open endpoints with the Open doors / Close doors control.
-- A visible capability summary for each selected model.
+```bash
+python3 -m http.server 8000 --directory build/web
+```
 
-The interior button is a camera presentation, not a second model. The CarConcept asset includes a modeled interior. It has door/hood hierarchy and authored pivots but no ready-made glTF animation clips; its headlight interaction is material-based rather than animation-based.
+Then open <http://localhost:8000>.
+
+## Deploy from GitHub
+
+The repository includes a GitHub Actions workflow at
+`.github/workflows/deploy-web.yml`. It builds and deploys the web app to GitHub
+Pages whenever changes are pushed to `main`.
+
+One-time setup:
+
+1. Open the repository's **Settings → Pages** page.
+2. Set **Build and deployment → Source** to **GitHub Actions**.
+3. Push changes to `main`, or run the workflow manually from the **Actions** tab.
+
+After that, GitHub rebuilds the app for you—there is no need to upload
+`build/web` manually after each change.
+
+## Project status
+
+This is a web spike/prototype. It currently uses local GLB assets and does not
+have a backend, authentication, database, or server-side engine.
+
+The 3D models are loaded in the browser, so the first load can take a little
+time. The public deployment is intended for testing and feedback.
 
 ## Asset attribution
 
-CarConcept is from the Khronos glTF Sample Assets repository and is licensed CC BY 4.0. Keep the attribution when using it beyond local testing:
+The 3D assets come from the Khronos glTF Sample Assets repository and are
+licensed under CC BY 4.0. Keep the attribution when using this project beyond
+local testing:
 
-https://github.com/KhronosGroup/glTF-Sample-Assets/blob/main/Models/CarConcept/README.md
-
-Commercial Refrigerator is from the Khronos glTF Sample Assets repository and is licensed CC BY 4.0. Its source model credits Eric Chadwick and Sean Thomas:
-
-https://github.com/KhronosGroup/glTF-Sample-Assets/blob/main/Models/CommercialRefrigerator/README.md
+- [CarConcept attribution](https://github.com/KhronosGroup/glTF-Sample-Assets/blob/main/Models/CarConcept/README.md)
+- [CommercialRefrigerator attribution](https://github.com/KhronosGroup/glTF-Sample-Assets/blob/main/Models/CommercialRefrigerator/README.md)
