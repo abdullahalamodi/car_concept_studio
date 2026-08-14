@@ -1,5 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
+
+export 'car_lighting_contract.dart';
+
+import 'car_lighting_bridge_stub.dart'
+    if (dart.library.js_interop) 'car_lighting_bridge_web.dart'
+    as car_lighting_bridge;
+import 'refrigerator_animation_bridge_stub.dart'
+    if (dart.library.js_interop) 'refrigerator_animation_bridge_web.dart'
+    as refrigerator_animation_bridge;
 
 void main() => runApp(const CarConceptStudioApp());
 
@@ -19,6 +29,52 @@ class ModelOption {
   final String description;
   final IconData icon;
 }
+
+class CameraPreset {
+  const CameraPreset({
+    required this.cameraOrbit,
+    required this.cameraTarget,
+    required this.fieldOfView,
+    required this.minCameraOrbit,
+    required this.maxCameraOrbit,
+    required this.radius,
+    required this.minRadius,
+    required this.targetHeight,
+  });
+
+  final String cameraOrbit;
+  final String cameraTarget;
+  final String fieldOfView;
+  final String minCameraOrbit;
+  final String maxCameraOrbit;
+  final double radius;
+  final double minRadius;
+  final double targetHeight;
+}
+
+const exteriorCameraPreset = CameraPreset(
+  cameraOrbit: '25deg 75deg 5.6m',
+  cameraTarget: '0m 0.75m 0m',
+  fieldOfView: '28deg',
+  minCameraOrbit: 'auto auto 3m',
+  maxCameraOrbit: 'auto auto 8m',
+  radius: 5.6,
+  minRadius: 3,
+  targetHeight: 0.75,
+);
+
+const interiorCameraPreset = CameraPreset(
+  // The car is about 2.2 m wide and 1.15 m tall. This is a driver-seat
+  // position looking toward the dashboard, rather than an exterior orbit.
+  cameraOrbit: '180deg 88deg 1.2m',
+  cameraTarget: '0m 0.65m 1.5m',
+  fieldOfView: '58deg',
+  minCameraOrbit: 'auto auto 0.65m',
+  maxCameraOrbit: 'auto auto 2.5m',
+  radius: 1.2,
+  minRadius: 0.65,
+  targetHeight: 0.65,
+);
 
 const modelOptions = <ModelOption>[
   ModelOption(
@@ -74,42 +130,82 @@ class _StudioPageState extends State<StudioPage> {
   bool _headlightsOn = false;
   bool _doorsOpen = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _scheduleHeadlightSync();
+  }
+
   bool get _isRefrigerator => _model == StudioModel.commercialRefrigerator;
 
-  ModelOption get _selectedModel => modelOptions.firstWhere(
-    (option) => option.model == _model,
-  );
+  String _assetPath(String fileName) =>
+      kIsWeb ? 'assets/assets/$fileName' : 'assets/$fileName';
 
-  void _setPaint(PaintOption value) => setState(() {
-    _paint = value;
-    _lastAction = 'Paint changed';
-  });
+  ModelOption get _selectedModel =>
+      modelOptions.firstWhere((option) => option.model == _model);
 
-  void _setModel(StudioModel value) => setState(() {
-    _model = value;
-    _view = 'Exterior';
-    _doorsOpen = false;
-    _lastAction = value == StudioModel.commercialRefrigerator
-        ? 'Commercial refrigerator selected'
-        : 'Car concept selected';
-  });
+  void _setPaint(PaintOption value) {
+    setState(() {
+      _paint = value;
+      _lastAction = 'Paint changed';
+    });
+    _scheduleHeadlightSync();
+  }
 
-  void _setView(String value) => setState(() {
-    _view = value;
-    _lastAction = value == 'Interior' ? 'Interior reveal' : 'Exterior view';
-  });
+  void _setModel(StudioModel value) {
+    setState(() {
+      _model = value;
+      _view = 'Exterior';
+      _doorsOpen = false;
+      _lastAction = value == StudioModel.commercialRefrigerator
+          ? 'Commercial refrigerator selected'
+          : 'Car concept selected';
+    });
+    _scheduleHeadlightSync();
+  }
 
-  void _toggleLights() => setState(() {
-    _headlightsOn = !_headlightsOn;
-    _lastAction = _headlightsOn
-        ? 'Headlights turned on'
-        : 'Headlights turned off';
-  });
+  void _setView(String value) {
+    setState(() {
+      _view = value;
+      _lastAction = value == 'Interior' ? 'Interior reveal' : 'Exterior view';
+    });
+    _scheduleHeadlightSync();
+  }
 
-  void _toggleDoors() => setState(() {
-    _doorsOpen = !_doorsOpen;
-    _lastAction = _doorsOpen ? 'Doors opening' : 'Doors closing';
-  });
+  void _toggleLights() {
+    setState(() {
+      _headlightsOn = !_headlightsOn;
+      _lastAction = _headlightsOn
+          ? 'Headlights turned on'
+          : 'Headlights turned off';
+    });
+    _scheduleHeadlightSync();
+  }
+
+  void _scheduleHeadlightSync() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_isRefrigerator) {
+        car_lighting_bridge.syncCarHeadlights(
+          'car-concept-viewer',
+          on: _headlightsOn,
+        );
+      }
+    });
+  }
+
+  void _toggleDoors() {
+    final nextDoorsOpen = !_doorsOpen;
+    setState(() {
+      _doorsOpen = nextDoorsOpen;
+      _lastAction = _doorsOpen ? 'Doors opening' : 'Doors closing';
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      refrigerator_animation_bridge.syncRefrigeratorDoors(
+        'refrigerator-viewer',
+        open: nextDoorsOpen,
+      );
+    });
+  }
 
   void _showWheels() {
     setState(() => _lastAction = 'Wheel information hotspot');
@@ -215,10 +311,7 @@ class _StudioPageState extends State<StudioPage> {
                 color: const Color(0xffd8ff4f),
                 borderRadius: BorderRadius.circular(11),
               ),
-              child: Icon(
-                _selectedModel.icon,
-                color: const Color(0xff12150d),
-              ),
+              child: Icon(_selectedModel.icon, color: const Color(0xff12150d)),
             ),
             const SizedBox(width: 12),
             const Column(
@@ -283,11 +376,7 @@ class _StudioPageState extends State<StudioPage> {
         Expanded(
           child: Row(
             children: modelOptions
-                .map(
-                  (option) => Expanded(
-                    child: _modelButton(option),
-                  ),
-                )
+                .map((option) => Expanded(child: _modelButton(option)))
                 .toList(),
           ),
         ),
@@ -355,8 +444,11 @@ class _StudioPageState extends State<StudioPage> {
     );
   }
 
-  Widget _viewer() {
+  Widget _viewer() => _isRefrigerator ? _refrigeratorViewer() : _carViewer();
+
+  Widget _carViewer() {
     final interior = _view == 'Interior';
+    final camera = interior ? interiorCameraPreset : exteriorCameraPreset;
     return Container(
       height: 620,
       clipBehavior: Clip.antiAlias,
@@ -369,16 +461,16 @@ class _StudioPageState extends State<StudioPage> {
         children: [
           Positioned.fill(
             child: ModelViewer(
-              key: ValueKey('${_paint.name}-$_view-$_headlightsOn'),
+              key: ValueKey('${_paint.name}-$_view'),
               id: 'car-concept-viewer',
-              src: 'assets/CarConcept.glb',
+              src: _assetPath('CarConcept.glb'),
               alt: 'Khronos Car Concept vehicle',
               variantName: _paint.name,
-              cameraOrbit: interior ? '180deg 74deg 3.4m' : '25deg 75deg 5.6m',
-              cameraTarget: interior ? '0m 1.05m 0m' : '0m 0.75m 0m',
-              fieldOfView: '28deg',
-              minCameraOrbit: 'auto auto 3m',
-              maxCameraOrbit: 'auto auto 8m',
+              cameraOrbit: camera.cameraOrbit,
+              cameraTarget: camera.cameraTarget,
+              fieldOfView: camera.fieldOfView,
+              minCameraOrbit: camera.minCameraOrbit,
+              maxCameraOrbit: camera.maxCameraOrbit,
               cameraControls: true,
               autoRotate: !interior,
               autoRotateDelay: 1800,
@@ -406,17 +498,9 @@ class _StudioPageState extends State<StudioPage> {
               }
               #part-info.visible { display: block; }
             ''',
-              relatedJs:
-                  '''
+              relatedJs: '''
               const carViewer = document.querySelector('#car-concept-viewer');
               const partInfo = carViewer.querySelector('#part-info');
-              carViewer.addEventListener('load', () => {
-                const headlight = carViewer.model.getMaterialByName('Headlight');
-                if (headlight) {
-                  headlight.setEmissiveFactor('${_headlightsOn ? '#ffffff' : '#000000'}');
-                  headlight.setEmissiveStrength(${_headlightsOn ? 3 : 0});
-                }
-              });
               carViewer.addEventListener('click', (event) => {
                 const material = carViewer.materialFromPoint(event.clientX, event.clientY);
                 if (material && /rim|tire|brake|disc/i.test(material.name)) {
@@ -458,7 +542,206 @@ class _StudioPageState extends State<StudioPage> {
     );
   }
 
-  Widget _controls() => Container(
+  Widget _refrigeratorViewer() {
+    return Container(
+      height: 620,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: const Color(0xff13171c),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xff252b33)),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ModelViewer(
+              key: const ValueKey('refrigerator-viewer'),
+              id: 'refrigerator-viewer',
+              src: _assetPath('CommercialRefrigerator.glb'),
+              alt: 'Khronos Commercial Refrigerator with animated glass door',
+              cameraOrbit: '0deg 76deg 4.4m',
+              cameraTarget: '0m 1.1m 0m',
+              fieldOfView: '30deg',
+              minCameraOrbit: 'auto auto 2.7m',
+              maxCameraOrbit: 'auto auto 7m',
+              cameraControls: true,
+              autoRotate: false,
+              ar: true,
+              arModes: const ['webxr', 'scene-viewer', 'quick-look'],
+              backgroundColor: const Color(0xff13171c),
+              shadowIntensity: 0.85,
+              exposure: 1,
+              animationCrossfadeDuration: 180,
+              debugLogging: false,
+            ),
+          ),
+          Positioned(
+            top: 18,
+            left: 18,
+            child: _label(_doorsOpen ? 'DOORS OPEN' : 'DOORS CLOSED'),
+          ),
+          Positioned(
+            bottom: 18,
+            left: 18,
+            right: 18,
+            child: Row(
+              children: [
+                _label('LIVE  •  COMMERCIAL REFRIGERATOR'),
+                const Spacer(),
+                Text(
+                  'Drag to orbit  ·  Scroll to zoom',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: .5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _controls() =>
+      _isRefrigerator ? _refrigeratorControls() : _carControls();
+
+  Widget _refrigeratorControls() => Container(
+    padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
+    decoration: BoxDecoration(
+      color: const Color(0xff13171c),
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: const Color(0xff252b33)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Animate the doors',
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+              ),
+            ),
+            _badge('ANIMATION LAB', const Color(0xffd8ff4f)),
+          ],
+        ),
+        const SizedBox(height: 5),
+        const Text(
+          'Play the authored glTF cycle in two forward segments: closed → open, then open → closed.',
+          style: TextStyle(color: Color(0xff87909d), fontSize: 12, height: 1.4),
+        ),
+        const SizedBox(height: 24),
+        _section('01', 'DOOR ANIMATION', 'Authored glTF clip'),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xff0e1114),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xff252b33)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xffd8ff4f).withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.door_front_door_outlined,
+                  color: Color(0xffd8ff4f),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _doorsOpen ? 'Doors are open' : 'Doors are closed',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'One click changes the model state',
+                      style: TextStyle(fontSize: 11, color: Color(0xff87909d)),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                _doorsOpen
+                    ? Icons.lock_open_rounded
+                    : Icons.lock_outline_rounded,
+                color: const Color(0xffaab2bd),
+                size: 19,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: _action(
+            _doorsOpen
+                ? Icons.sensor_door_outlined
+                : Icons.meeting_room_outlined,
+            _doorsOpen ? 'Close doors' : 'Open doors',
+            _toggleDoors,
+            active: _doorsOpen,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: const BoxDecoration(
+                color: Color(0xffd8ff4f),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Last action  /  $_lastAction',
+                style: const TextStyle(fontSize: 11, color: Color(0xffaab2bd)),
+              ),
+            ),
+            const Icon(
+              Icons.animation_rounded,
+              size: 15,
+              color: Color(0xff65707d),
+            ),
+          ],
+        ),
+        const SizedBox(height: 22),
+        _capabilities(
+          fileName: 'CommercialRefrigerator.glb',
+          tags: const ['1 door clip', 'glass condensation', 'FridgeDoor pivot'],
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'The animation is driven by the source GLB. The same model switcher can host additional animated assets later.',
+          style: TextStyle(
+            fontSize: 11,
+            height: 1.45,
+            color: Color(0xff87909d),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _carControls() => Container(
     padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
     decoration: BoxDecoration(
       color: const Color(0xff13171c),
@@ -691,7 +974,15 @@ class _StudioPageState extends State<StudioPage> {
     ),
   );
 
-  Widget _capabilities() => Container(
+  Widget _capabilities({
+    String fileName = 'CarConcept.glb',
+    List<String> tags = const [
+      '3 paint variants',
+      'full interior',
+      'door pivots',
+      '0 clips',
+    ],
+  }) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
       color: const Color(0xff0e1114),
@@ -713,23 +1004,14 @@ class _StudioPageState extends State<StudioPage> {
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
             const Spacer(),
-            const Text(
-              'CarConcept.glb',
+            Text(
+              fileName,
               style: TextStyle(fontSize: 10, color: Color(0xff65707d)),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 7,
-          runSpacing: 7,
-          children: [
-            _tag('3 paint variants'),
-            _tag('full interior'),
-            _tag('door pivots'),
-            _tag('0 clips'),
-          ],
-        ),
+        Wrap(spacing: 7, runSpacing: 7, children: tags.map(_tag).toList()),
       ],
     ),
   );
