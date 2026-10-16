@@ -31,6 +31,9 @@ is to test the interaction model—not to present a finished production product.
 - Demonstrates three authored `KHR_materials_variants` paint options on the car.
 - Provides exterior and interior camera presentations for the car.
 - Exposes model-specific actions such as headlights and wheel details.
+- Anchors tappable information points to the front wheels and doors as the car
+  rotates; Show all info opens the complete parts overview.
+- Describes the concept asset without inventing unavailable vehicle specifications.
 - Plays the refrigerator's authored glTF door animation forward and backward.
 - Shows a capability summary based on the selected GLB asset.
 

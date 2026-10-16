@@ -4,6 +4,11 @@ import 'package:model_viewer_plus/model_viewer_plus.dart';
 
 export 'car_lighting_contract.dart';
 
+import 'car_hotspots.dart';
+import 'car_hotspot_bridge_stub.dart'
+    if (dart.library.js_interop) 'car_hotspot_bridge_web.dart'
+    as car_hotspot_bridge;
+
 import 'car_lighting_bridge_stub.dart'
     if (dart.library.js_interop) 'car_lighting_bridge_web.dart'
     as car_lighting_bridge;
@@ -129,11 +134,18 @@ class _StudioPageState extends State<StudioPage> {
   String _lastAction = 'None';
   bool _headlightsOn = false;
   bool _doorsOpen = false;
+  final _hotspotBridge = car_hotspot_bridge.CarHotspotBridge();
 
   @override
   void initState() {
     super.initState();
     _scheduleHeadlightSync();
+  }
+
+  @override
+  void dispose() {
+    _hotspotBridge.dispose();
+    super.dispose();
   }
 
   bool get _isRefrigerator => _model == StudioModel.commercialRefrigerator;
@@ -184,7 +196,14 @@ class _StudioPageState extends State<StudioPage> {
 
   void _scheduleHeadlightSync() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_isRefrigerator) {
+      if (!mounted) return;
+      _hotspotBridge.dispose();
+      if (!_isRefrigerator) {
+        _hotspotBridge.attach('car-concept-viewer', (id) {
+          if (mounted) {
+            _showPartInfo(carParts.firstWhere((part) => part.id == id));
+          }
+        });
         car_lighting_bridge.syncCarHeadlights(
           'car-concept-viewer',
           on: _headlightsOn,
@@ -207,33 +226,23 @@ class _StudioPageState extends State<StudioPage> {
     });
   }
 
-  void _showWheels() {
-    setState(() => _lastAction = 'Wheel information hotspot');
+  void _showWheels() => _showPartInfo(carParts.first);
+
+  void _showPartInfo([CarPart? part]) {
+    setState(
+      () => _lastAction = part == null
+          ? 'All part information'
+          : '${part.title} information',
+    );
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xff171b20),
-      builder: (context) => const Padding(
-        padding: EdgeInsets.fromLTRB(24, 20, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Front wheel',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'This is an app-owned information hotspot; it does not replace the wheel mesh in the GLB.',
-            ),
-            SizedBox(height: 12),
-            Text(
-              '19” alloy · 245/40 R19 · performance road tire',
-              style: TextStyle(color: Color(0xffaab2bd)),
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .8,
       ),
+      backgroundColor: const Color(0xff171b20),
+      builder: (context) => CarPartInfo(part: part),
     );
   }
 
@@ -480,35 +489,8 @@ class _StudioPageState extends State<StudioPage> {
               backgroundColor: const Color(0xff13171c),
               shadowIntensity: 0.85,
               exposure: 0.92,
-              innerModelViewerHtml: '''
-              <div id="part-info" role="status">Wheel material picked · see wheel details</div>
-            ''',
-              relatedCss: '''
-              #part-info {
-                display: none;
-                position: absolute;
-                left: 16px;
-                top: 52px;
-                padding: 8px 10px;
-                border-radius: 8px;
-                color: #d8ff4f;
-                background: rgba(17, 21, 26, .92);
-                border: 1px solid #46522b;
-                font: 700 11px Arial, sans-serif;
-              }
-              #part-info.visible { display: block; }
-            ''',
-              relatedJs: '''
-              const carViewer = document.querySelector('#car-concept-viewer');
-              const partInfo = carViewer.querySelector('#part-info');
-              carViewer.addEventListener('click', (event) => {
-                const material = carViewer.materialFromPoint(event.clientX, event.clientY);
-                if (material && /rim|tire|brake|disc/i.test(material.name)) {
-                  partInfo.classList.add('visible');
-                  window.setTimeout(() => partInfo.classList.remove('visible'), 2600);
-                }
-              });
-            ''',
+              innerModelViewerHtml: interior ? null : carHotspotHtml,
+              relatedCss: carHotspotCss,
               debugLogging: false,
             ),
           ),
@@ -801,6 +783,13 @@ class _StudioPageState extends State<StudioPage> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 10),
+        _action(Icons.info_outline, 'Show all info', () => _showPartInfo()),
+        const SizedBox(height: 8),
+        const Text(
+          'Tap a + point on a wheel or door to explore its details.',
+          style: TextStyle(color: Color(0xff87909d), fontSize: 12),
         ),
         const SizedBox(height: 18),
         Row(
