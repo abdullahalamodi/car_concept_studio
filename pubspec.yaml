@@ -33,7 +33,11 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
+  flutter_scene: ^0.24.3
   model_viewer_plus: ^1.10.0
+  # Backs hook/build.dart, which compiles the flutter_scene native assets.
+  hooks: ^2.2.0
+  vector_math: ^2.4.3
   web: ^1.1.1
 
 dev_dependencies:
@@ -66,6 +70,21 @@ flutter:
   assets:
     - assets/CarConcept.glb
     - assets/CommercialRefrigerator.glb
+    - flutter_scene_generated/
+    - path: flutter_scene_generated/metal_ios/
+      platforms:
+        - ios
+    - path: flutter_scene_generated/metal_desktop/
+      platforms:
+        - macos
+    - path: flutter_scene_generated/opengl_es_vulkan/
+      platforms:
+        - android
+        - linux
+        - windows
+    - path: flutter_scene_generated/opengl_es/
+      platforms:
+        - web
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

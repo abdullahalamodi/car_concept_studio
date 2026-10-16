@@ -16,6 +16,10 @@ import 'refrigerator_animation_bridge_stub.dart'
     if (dart.library.js_interop) 'refrigerator_animation_bridge_web.dart'
     as refrigerator_animation_bridge;
 
+import 'scene_lab/scene_lab_controller.dart';
+import 'scene_lab/scene_lab_controls.dart';
+import 'scene_lab/scene_lab_view.dart';
+
 void main() => runApp(const CarConceptStudioApp());
 
 class PaintOption {
@@ -25,7 +29,7 @@ class PaintOption {
   final String description;
 }
 
-enum StudioModel { carConcept, commercialRefrigerator }
+enum StudioModel { carConcept, commercialRefrigerator, sceneLab }
 
 class ModelOption {
   const ModelOption(this.model, this.name, this.description, this.icon);
@@ -94,6 +98,12 @@ const modelOptions = <ModelOption>[
     'Door animation demo',
     Icons.kitchen_outlined,
   ),
+  ModelOption(
+    StudioModel.sceneLab,
+    'Scene Lab',
+    'Flutter Scene · live rig',
+    Icons.science_outlined,
+  ),
 ];
 
 const paints = <PaintOption>[
@@ -134,6 +144,7 @@ class _StudioPageState extends State<StudioPage> {
   String _lastAction = 'None';
   bool _headlightsOn = false;
   bool _doorsOpen = false;
+  final _sceneLab = SceneLabController();
   final _hotspotBridge = car_hotspot_bridge.CarHotspotBridge();
 
   @override
@@ -145,10 +156,9 @@ class _StudioPageState extends State<StudioPage> {
   @override
   void dispose() {
     _hotspotBridge.dispose();
+    _sceneLab.dispose();
     super.dispose();
   }
-
-  bool get _isRefrigerator => _model == StudioModel.commercialRefrigerator;
 
   String _assetPath(String fileName) =>
       kIsWeb ? 'assets/assets/$fileName' : 'assets/$fileName';
@@ -169,9 +179,11 @@ class _StudioPageState extends State<StudioPage> {
       _model = value;
       _view = 'Exterior';
       _doorsOpen = false;
-      _lastAction = value == StudioModel.commercialRefrigerator
-          ? 'Commercial refrigerator selected'
-          : 'Car concept selected';
+      _lastAction = switch (value) {
+        StudioModel.carConcept => 'Car concept selected',
+        StudioModel.commercialRefrigerator => 'Commercial refrigerator selected',
+        StudioModel.sceneLab => 'Scene Lab selected',
+      };
     });
     _scheduleHeadlightSync();
   }
@@ -198,7 +210,9 @@ class _StudioPageState extends State<StudioPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _hotspotBridge.dispose();
-      if (!_isRefrigerator) {
+      // Hotspot + headlight bridges only apply to the model-viewer car demo;
+      // the refrigerator has no hotspots and Scene Lab owns its own lights.
+      if (_model == StudioModel.carConcept) {
         _hotspotBridge.attach('car-concept-viewer', (id) {
           if (mounted) {
             _showPartInfo(carParts.firstWhere((part) => part.id == id));
@@ -453,7 +467,11 @@ class _StudioPageState extends State<StudioPage> {
     );
   }
 
-  Widget _viewer() => _isRefrigerator ? _refrigeratorViewer() : _carViewer();
+  Widget _viewer() => switch (_model) {
+    StudioModel.carConcept => _carViewer(),
+    StudioModel.commercialRefrigerator => _refrigeratorViewer(),
+    StudioModel.sceneLab => SceneLabView(controller: _sceneLab),
+  };
 
   Widget _carViewer() {
     final interior = _view == 'Interior';
@@ -585,8 +603,11 @@ class _StudioPageState extends State<StudioPage> {
     );
   }
 
-  Widget _controls() =>
-      _isRefrigerator ? _refrigeratorControls() : _carControls();
+  Widget _controls() => switch (_model) {
+    StudioModel.carConcept => _carControls(),
+    StudioModel.commercialRefrigerator => _refrigeratorControls(),
+    StudioModel.sceneLab => SceneLabControls(controller: _sceneLab),
+  };
 
   Widget _refrigeratorControls() => Container(
     padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),

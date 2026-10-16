@@ -7,6 +7,7 @@ void main() {
     expect(studio.modelOptions.map((model) => model.name), <String>[
       'Car Concept',
       'Commercial Refrigerator',
+      'Scene Lab',
     ]);
   });
 

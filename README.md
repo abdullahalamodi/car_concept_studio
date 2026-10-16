@@ -27,7 +27,8 @@ is to test the interaction model—not to present a finished production product.
 
 ## What it does
 
-- Switches between a Car Concept model and a Commercial Refrigerator model.
+- Switches between a Car Concept model, a Commercial Refrigerator model, and a
+  Scene Lab built on `flutter_scene`.
 - Demonstrates three authored `KHR_materials_variants` paint options on the car.
 - Provides exterior and interior camera presentations for the car.
 - Exposes model-specific actions such as headlights and wheel details.
@@ -35,6 +36,8 @@ is to test the interaction model—not to present a finished production product.
   rotates; Show all info opens the complete parts overview.
 - Describes the concept asset without inventing unavailable vehicle specifications.
 - Plays the refrigerator's authored glTF door animation forward and backward.
+- Runs the Scene Lab: per-part painted PBR finishes, live studio lighting looks,
+  spinning wheels, authored camera shots, and an auto-choreographed showreel.
 - Shows a capability summary based on the selected GLB asset.
 
 The controls are intentionally model-aware: the interface surfaces capabilities
